@@ -24,7 +24,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "dev": "npm run build && npx wrangler pages dev build --r2 BUCKET --binding WEBDAV_ENABLED=true --binding WEBDAV_USERNAME=test --binding WEBDAV_PASSWORD=test",
+    "deploy": "npm run build && npx wrangler pages deploy"
   },
   "eslintConfig": {
     "extends": [
