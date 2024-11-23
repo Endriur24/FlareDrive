@@ -203,6 +203,7 @@ function Main({
             multiSelected={multiSelected}
             onMultiSelect={handleMultiSelect}
             emptyMessage={<Centered>No files or folders</Centered>}
+            onRefresh={fetchFiles}
           />
         </DropZone>
       )}
