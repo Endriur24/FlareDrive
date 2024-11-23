@@ -1,11 +1,9 @@
-name = "flare-drive"
+name = "flaredrive"
 pages_build_output_dir = "./build"
 compatibility_date = "2024-03-11"
 
 [[r2_buckets]]
 binding = "BUCKET"
-bucket_name = "flaredrive-local"
+bucket_name = "assets"
 
-[vars]
-WEBDAV_USERNAME = "test"
-WEBDAV_PASSWORD = "test"
+
