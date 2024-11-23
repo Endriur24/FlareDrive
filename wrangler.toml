@@ -1,0 +1,11 @@
+name = "flare-drive"
+pages_build_output_dir = "./build"
+compatibility_date = "2024-03-11"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "flaredrive-local"
+
+[vars]
+WEBDAV_USERNAME = "test"
+WEBDAV_PASSWORD = "test"

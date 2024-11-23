@@ -51,6 +51,8 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-    "@cloudflare/workers-types": "^4.20240620.0"
+    "@cloudflare/workers-types": "^4.20240620.0",
+    "miniflare": "^3.20241106.1",
+    "wrangler": "^3.90.0"
   }
 }

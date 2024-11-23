@@ -6,6 +6,7 @@ import {
   CircularProgress,
   Link,
   Typography,
+  Snackbar,
 } from "@mui/material";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -122,6 +123,7 @@ function Main({
   const [multiSelected, setMultiSelected] = useState<string[] | null>(null);
   const [showUploadDrawer, setShowUploadDrawer] = useState(false);
   const [lastUploadKey, setLastUploadKey] = useState<string | null>(null);
+  const [showShareSnackbar, setShowShareSnackbar] = useState(false);
 
   const transferQueue = useTransferQueue();
   const uploadEnqueue = useUploadEnqueue();
@@ -237,6 +239,18 @@ function Main({
             await fetch(`/webdav/${encodeKey(key)}`, { method: "DELETE" });
           fetchFiles();
         }}
+        onShare={() => {
+          if (multiSelected?.length !== 1) return;
+          const fileUrl = `https://andrzejrusinowski.pl/static/${encodeKey(multiSelected[0])}`;
+          navigator.clipboard.writeText(fileUrl);
+          setShowShareSnackbar(true);
+        }}
+      />
+      <Snackbar
+        open={showShareSnackbar}
+        autoHideDuration={3000}
+        onClose={() => setShowShareSnackbar(false)}
+        message="Link copied to clipboard"
       />
     </React.Fragment>
   );
