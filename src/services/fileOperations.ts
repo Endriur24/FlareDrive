@@ -29,6 +29,6 @@ export async function deleteFile(key: string): Promise<void> {
 }
 
 export async function getFileShareLink(key: string): Promise<string> {
-  const url = new URL(`/webdav/${encodeKey(key)}`, window.location.origin);
+  const url = `https://andrzejrusinowski.pl/static/${encodeKey(key)}`;
   return url.toString();
 }
