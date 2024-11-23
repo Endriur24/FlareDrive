@@ -53,6 +53,7 @@ export function TransferQueueProvider({
 }) {
   const [transferTasks, setTransferTasks] = useState<TransferTask[]>([]);
   const taskProcessing = useRef<TransferTask | null>(null);
+  const cleanupTimeoutRef = useRef<number | null>(null);
 
   function currentTaskUpdater(props: Partial<TransferTask>) {
     const currentTask = taskProcessing.current!;
@@ -66,6 +67,33 @@ export function TransferQueueProvider({
       return newTasks;
     };
   }
+
+  // Cleanup completed tasks after a delay
+  useEffect(() => {
+    if (cleanupTimeoutRef.current) {
+      clearTimeout(cleanupTimeoutRef.current);
+    }
+
+    const hasCompletedTasks = transferTasks.some(task => 
+      task.status === "completed" || task.status === "failed"
+    );
+
+    if (hasCompletedTasks) {
+      cleanupTimeoutRef.current = window.setTimeout(() => {
+        setTransferTasks(tasks => 
+          tasks.filter(task => 
+            task.status !== "completed" && task.status !== "failed"
+          )
+        );
+      }, 2000); // Clean up after 2 seconds
+    }
+
+    return () => {
+      if (cleanupTimeoutRef.current) {
+        clearTimeout(cleanupTimeoutRef.current);
+      }
+    };
+  }, [transferTasks]);
 
   useEffect(() => {
     const taskToProcess = transferTasks.find(
@@ -88,6 +116,7 @@ export function TransferQueueProvider({
       })
       .catch((error) => {
         setTransferTasks(currentTaskUpdater({ status: "failed", error }));
+        taskProcessing.current = null;
       });
   }, [transferTasks]);
 

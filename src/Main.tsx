@@ -6,12 +6,16 @@ import {
   CircularProgress,
   Link,
   Typography,
+  InputBase,
+  IconButton,
 } from "@mui/material";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import CheckIcon from '@mui/icons-material/Check';
 
-import FileGrid, { encodeKey, FileItem, isDirectory } from "./FileGrid";
+import FileGrid from "./FileGrid";
+import { FileItem } from "./types/file";
+import { isDirectory, encodeKey } from "./utils/fileUtils";
 import MultiSelectToolbar from "./MultiSelectToolbar";
-import UploadDrawer, { UploadFab } from "./UploadDrawer";
 import { copyPaste, fetchPath } from "./app/transfer";
 import { useTransferQueue, useUploadEnqueue } from "./app/transferQueue";
 import ProgressDialog from "./ProgressDialog";
@@ -58,8 +62,8 @@ function PathBreadcrumb({
           </Typography>
         ) : (
           <Link
-            key={index}
             component="button"
+            key={index}
             onClick={() => {
               onCwdChange(parts.slice(0, index + 1).join("/") + "/");
             }}
@@ -113,24 +117,23 @@ function DropZone({
 function Main({
   search,
   onError,
+  onCwdChange,
+  onRefreshReady,
 }: {
   search: string;
   onError: (error: Error) => void;
+  onCwdChange: (cwd: string) => void;
+  onRefreshReady: (refresh: () => void) => void;
 }) {
   const [cwd, setCwd] = React.useState("");
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [multiSelected, setMultiSelected] = useState<string[] | null>(null);
-  const [showUploadDrawer, setShowUploadDrawer] = useState(false);
-  const [lastUploadKey, setLastUploadKey] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newName, setNewName] = useState('');
 
   const transferQueue = useTransferQueue();
   const uploadEnqueue = useUploadEnqueue();
-
-  // Show progress dialog automatically when there are active uploads
-  const hasActiveUploads = transferQueue.some(
-    task => task.type === "upload" && ["pending", "in-progress"].includes(task.status)
-  );
 
   const fetchFiles = useCallback(() => {
     fetchPath(cwd)
@@ -142,22 +145,32 @@ function Main({
       .finally(() => setLoading(false));
   }, [cwd, onError]);
 
+  // Register the refresh function with parent
+  useEffect(() => {
+    onRefreshReady(fetchFiles);
+  }, [fetchFiles, onRefreshReady]);
+
   useEffect(() => setLoading(true), [cwd]);
 
   useEffect(() => {
     fetchFiles();
   }, [fetchFiles]);
 
+  // Monitor transfer queue for completed uploads
   useEffect(() => {
-    if (!transferQueue.length) return;
-    const lastFile = transferQueue[transferQueue.length - 1];
-    if (["pending", "in-progress"].includes(lastFile.status))
-      setLastUploadKey(lastFile.remoteKey);
-    else if (lastUploadKey) {
+    const hasCompletedTasks = transferQueue.some(
+      task => task.status === "completed"
+    );
+    
+    if (hasCompletedTasks) {
       fetchFiles();
-      setLastUploadKey(null);
     }
-  }, [cwd, fetchFiles, lastUploadKey, transferQueue]);
+  }, [transferQueue, fetchFiles]);
+
+  // Sync local cwd with parent
+  useEffect(() => {
+    onCwdChange(cwd);
+  }, [cwd, onCwdChange]);
 
   const filteredFiles = useMemo(
     () =>
@@ -181,6 +194,19 @@ function Main({
       return [...multiSelected, key];
     });
   }, []);
+
+  const handleRenameSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    if (!multiSelected?.length || !newName.trim()) return;
+    
+    const oldKey = multiSelected[0];
+    const dirPath = oldKey.substring(0, oldKey.lastIndexOf('/') + 1);
+    await copyPaste(oldKey, dirPath + newName.trim(), true);
+    fetchFiles();
+    setIsRenaming(false);
+  };
 
   return (
     <React.Fragment>
@@ -207,15 +233,6 @@ function Main({
           />
         </DropZone>
       )}
-      {multiSelected === null && (
-        <UploadFab onClick={() => setShowUploadDrawer(true)} />
-      )}
-      <UploadDrawer
-        open={showUploadDrawer}
-        setOpen={setShowUploadDrawer}
-        cwd={cwd}
-        onUpload={fetchFiles}
-      />
       <MultiSelectToolbar
         multiSelected={multiSelected}
         onClose={() => setMultiSelected(null)}
@@ -226,12 +243,10 @@ function Main({
           a.download = multiSelected[0].split("/").pop()!;
           a.click();
         }}
-        onRename={async () => {
+        onRename={() => {
           if (multiSelected?.length !== 1) return;
-          const newName = window.prompt("Rename to:");
-          if (!newName) return;
-          await copyPaste(multiSelected[0], cwd + newName, true);
-          fetchFiles();
+          setNewName(multiSelected[0].split('/').pop() || '');
+          setIsRenaming(true);
         }}
         onDelete={async () => {
           if (!multiSelected?.length) return;
@@ -250,10 +265,41 @@ function Main({
           navigator.clipboard.writeText(fileUrl);
         }}
       />
-      <ProgressDialog 
-        open={hasActiveUploads} 
-        onClose={() => {}} // Prevent manual closing when uploads are active
-      />
+      <ProgressDialog />
+      {isRenaming && multiSelected?.length === 1 && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 56,
+            left: 0,
+            right: 0,
+            bgcolor: 'background.paper',
+            borderTop: 1,
+            borderColor: 'divider',
+            p: 1,
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          <form onSubmit={handleRenameSubmit} style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+            <InputBase
+              autoFocus
+              fullWidth
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onBlur={() => setIsRenaming(false)}
+              sx={{ ml: 2 }}
+            />
+            <IconButton 
+              color="primary" 
+              onClick={() => handleRenameSubmit()}
+              sx={{ ml: 1 }}
+            >
+              <CheckIcon />
+            </IconButton>
+          </form>
+        </Box>
+      )}
     </React.Fragment>
   );
 }

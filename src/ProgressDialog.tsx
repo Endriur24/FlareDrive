@@ -9,6 +9,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import { useEffect, useState } from "react";
 import { TransferTask, useTransferQueue } from "./app/transferQueue";
 import { humanReadableSize } from "./app/utils";
 import {
@@ -16,18 +17,36 @@ import {
   ErrorOutline as ErrorOutlineIcon,
 } from "@mui/icons-material";
 
-function ProgressDialog({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+function ProgressDialog() {
   const transferQueue: TransferTask[] = useTransferQueue();
+  const [open, setOpen] = useState(false);
   const tasks = transferQueue.filter((task) => task.type === "upload");
 
+  // Control dialog visibility based on upload states
+  useEffect(() => {
+    const hasActiveTasks = tasks.some(
+      task => task.status === "pending" || task.status === "in-progress"
+    );
+    
+    if (hasActiveTasks) {
+      setOpen(true);
+    } else {
+      // If all tasks are complete/failed, close after delay
+      const allTasksComplete = tasks.every(
+        task => task.status === "completed" || task.status === "failed"
+      );
+      
+      if (allTasksComplete && open) {
+        const timer = window.setTimeout(() => {
+          setOpen(false);
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [tasks, open]);
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
       <DialogTitle>Upload Progress</DialogTitle>
       {tasks.length === 0 ? (
         <DialogContent>
@@ -47,7 +66,7 @@ function ProgressDialog({
                   )} / ${humanReadableSize(task.total)}`}
                 />
                 {task.status === "failed" ? (
-                  <Tooltip title={task.error.message}>
+                  <Tooltip title={task.error?.message || "Upload failed"}>
                     <ErrorOutlineIcon color="error" />
                   </Tooltip>
                 ) : task.status === "completed" ? (

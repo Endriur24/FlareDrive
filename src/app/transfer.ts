@@ -1,6 +1,7 @@
 import pLimit from "p-limit";
 
-import { encodeKey, FileItem } from "../FileGrid";
+import { encodeKey } from "../utils/fileUtils";
+import { FileItem } from "../types/file";
 import { TransferTask } from "./transferQueue";
 
 const WEBDAV_ENDPOINT = "/webdav/";

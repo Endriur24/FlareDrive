@@ -1,24 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  IconButton, 
-  AppBar, 
-  Toolbar, 
-  Typography,
-  Tooltip,
-  Stack,
-  Snackbar,
-  Alert
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import ShareIcon from '@mui/icons-material/Share';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import { encodeKey } from './FileGrid';
-import type { FileItem } from './FileGrid';
+import { Dialog, AlertColor } from '@mui/material';
+import type { FileItem } from './types/file';
+import ViewerToolbar from './components/viewer/ViewerToolbar';
+import FilePreview from './components/viewer/FilePreview';
+import NotificationSnackbar from './components/common/NotificationSnackbar';
+import { deleteFile } from './services/fileOperations';
 
 interface FileViewerProps {
   open: boolean;
@@ -31,6 +17,12 @@ interface FileViewerProps {
   onDelete: (key: string) => void;
 }
 
+interface NotificationState {
+  open: boolean;
+  message: string;
+  severity: AlertColor;
+}
+
 function FileViewer({ 
   open, 
   onClose, 
@@ -41,46 +33,65 @@ function FileViewer({
   onRename,
   onDelete
 }: FileViewerProps) {
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [notification, setNotification] = useState<NotificationState>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'ArrowLeft' && currentIndex > 0) {
-      onNavigate(files[currentIndex - 1]);
-    } else if (e.key === 'ArrowRight' && currentIndex < files.length - 1) {
-      onNavigate(files[currentIndex + 1]);
-    } else if (e.key === 'Escape') {
-      onClose();
+    if (!isRenaming) {
+      if (e.key === 'ArrowLeft' && currentIndex > 0) {
+        onNavigate(files[currentIndex - 1]);
+      } else if (e.key === 'ArrowRight' && currentIndex < files.length - 1) {
+        onNavigate(files[currentIndex + 1]);
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
     }
-  }, [currentIndex, files, onNavigate, onClose]);
+  }, [currentIndex, files, onNavigate, onClose, isRenaming]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const handleRenameClick = () => {
-    if (!file) return;
-    const newName = window.prompt("Rename to:");
-    if (!newName) return;
-    onRename(file.key, newName);
-  };
-
-  const handleCopyLink = () => {
-    if (file) {
-      const url = new URL(`/webdav/${encodeKey(file.key)}`, window.location.origin);
-      navigator.clipboard.writeText(url.toString());
-      setSnackbarMessage('Link copied to clipboard');
-      setSnackbarOpen(true);
+  const handleNavigate = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && currentIndex > 0) {
+      onNavigate(files[currentIndex - 1]);
+    } else if (direction === 'next' && currentIndex < files.length - 1) {
+      onNavigate(files[currentIndex + 1]);
     }
   };
 
-  if (!file) return null;
+  const handleDelete = async () => {
+    if (!file || !window.confirm('Are you sure you want to delete this file?')) {
+      return;
+    }
 
-  const fileUrl = `/webdav/${encodeKey(file.key)}`;
-  const isImage = file.httpMetadata.contentType.startsWith('image/');
-  const isPdf = file.httpMetadata.contentType === 'application/pdf';
-  const fileName = file.key.split('/').pop();
+    try {
+      await deleteFile(file.key);
+      onDelete(file.key);
+    } catch (error) {
+      setNotification({
+        open: true,
+        message: 'Failed to delete file',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleShareLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    setNotification({
+      open: true,
+      message: 'Link copied to clipboard',
+      severity: 'info'
+    });
+  };
+
+  if (!file) return null;
 
   return (
     <>
@@ -94,120 +105,27 @@ function FileViewer({
           }
         }}
       >
-        <AppBar position="relative" color="default">
-          <Toolbar>
-            <Stack direction="row" spacing={1} sx={{ mr: 2 }}>
-              <IconButton
-                color="inherit"
-                onClick={() => currentIndex > 0 && onNavigate(files[currentIndex - 1])}
-                disabled={currentIndex <= 0}
-              >
-                <ArrowBackIcon />
-              </IconButton>
-              <IconButton
-                color="inherit"
-                onClick={() => currentIndex < files.length - 1 && onNavigate(files[currentIndex + 1])}
-                disabled={currentIndex >= files.length - 1}
-              >
-                <ArrowForwardIcon />
-              </IconButton>
-            </Stack>
-
-            <Typography 
-              variant="h6" 
-              sx={{ flex: 1 }}
-            >
-              {fileName}
-            </Typography>
-
-            <Stack direction="row" spacing={1}>
-              <Tooltip title="Rename">
-                <IconButton color="inherit" onClick={handleRenameClick}>
-                  <EditIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Copy link">
-                <IconButton color="inherit" onClick={handleCopyLink}>
-                  <ShareIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Delete">
-                <IconButton 
-                  color="inherit" 
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete this file?')) {
-                      onDelete(file.key);
-                    }
-                  }}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Tooltip>
-              <IconButton
-                edge="end"
-                color="inherit"
-                onClick={onClose}
-                aria-label="close"
-              >
-                <CloseIcon />
-              </IconButton>
-            </Stack>
-          </Toolbar>
-        </AppBar>
-        <DialogContent sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center',
-          padding: 0
-        }}>
-          {isImage ? (
-            <img 
-              src={fileUrl} 
-              alt={file.key}
-              style={{ 
-                maxWidth: '100%', 
-                maxHeight: 'calc(100vh - 64px)',
-                objectFit: 'contain'
-              }} 
-            />
-          ) : isPdf ? (
-            <iframe
-              src={fileUrl}
-              title={`PDF viewer - ${file.key}`}
-              style={{
-                width: '100%',
-                height: 'calc(100vh - 64px)',
-                border: 'none'
-              }}
-            />
-          ) : (
-            <iframe
-              src={fileUrl}
-              title={`File viewer - ${file.key}`}
-              style={{
-                width: '100%',
-                height: 'calc(100vh - 64px)',
-                border: 'none',
-                backgroundColor: 'white'
-              }}
-            />
-          )}
-        </DialogContent>
+        <ViewerToolbar
+          file={file}
+          currentIndex={currentIndex}
+          totalFiles={files.length}
+          isRenaming={isRenaming}
+          onClose={onClose}
+          onNavigate={handleNavigate}
+          onRenameStart={() => setIsRenaming(true)}
+          onRenameSubmit={onRename}
+          onRenameCancel={() => setIsRenaming(false)}
+          onDelete={handleDelete}
+          onShareLink={handleShareLink}
+        />
+        <FilePreview file={file} />
       </Dialog>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setSnackbarOpen(false)} 
-          severity="info" 
-          sx={{ width: '100%' }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      <NotificationSnackbar
+        open={notification.open}
+        message={notification.message}
+        severity={notification.severity}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+      />
     </>
   );
 }

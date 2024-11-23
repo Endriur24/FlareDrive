@@ -1,66 +1,31 @@
-import React, { forwardRef, useCallback, useMemo } from "react";
-
-import { Button, Card, Drawer, Fab, Grid, Typography } from "@mui/material";
+import React, { useCallback, useMemo } from "react";
+import {
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Popover,
+  Paper,
+} from "@mui/material";
 import {
   Camera as CameraIcon,
   CreateNewFolder as CreateNewFolderIcon,
   Image as ImageIcon,
   Upload as UploadIcon,
+  FolderZip as FolderZipIcon,
 } from "@mui/icons-material";
 import { createFolder } from "./app/transfer";
 import { useUploadEnqueue } from "./app/transferQueue";
 
-function IconCaptionButton({
-  icon,
-  caption,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  caption: string;
-  onClick?: () => void;
-}) {
-  return (
-    <Button
-      color="inherit"
-      sx={{ width: "100%", display: "flex", flexDirection: "column" }}
-      onClick={onClick}
-    >
-      {icon}
-      <Typography
-        variant="caption"
-        sx={{ textTransform: "none", textWrap: "nowrap" }}
-      >
-        {caption}
-      </Typography>
-    </Button>
-  );
-}
-
-export const UploadFab = forwardRef<HTMLButtonElement, { onClick: () => void }>(
-  function ({ onClick }, ref) {
-    return (
-      <Fab
-        ref={ref}
-        aria-label="Upload"
-        variant="circular"
-        color="primary"
-        size="large"
-        sx={{ position: "fixed", right: 16, bottom: 16, color: "white" }}
-        onClick={onClick}
-      >
-        <UploadIcon fontSize="large" />
-      </Fab>
-    );
-  }
-);
-
 function UploadDrawer({
   open,
+  anchorEl,
   setOpen,
   cwd,
   onUpload,
 }: {
   open: boolean;
+  anchorEl: HTMLElement | null;
   setOpen: (open: boolean) => void;
   cwd: string;
   onUpload: () => void;
@@ -101,49 +66,86 @@ function UploadDrawer({
   const uploadFile = useMemo(() => handleUpload("file"), [handleUpload]);
 
   return (
-    <Drawer
-      anchor="bottom"
+    <Popover
       open={open}
+      anchorEl={anchorEl}
       onClose={() => setOpen(false)}
-      PaperProps={{ sx: { borderRadius: "16px 16px 0 0" } }}
+      anchorOrigin={{
+        vertical: 'bottom',
+        horizontal: 'right',
+      }}
+      transformOrigin={{
+        vertical: 'top',
+        horizontal: 'right',
+      }}
     >
-      <Card sx={{ padding: 2 }}>
-        <Grid container spacing={2}>
-          <Grid item xs={3}>
-            <IconCaptionButton
-              icon={<CameraIcon fontSize="large" />}
-              caption="Camera"
-              onClick={takePhoto}
+      <Paper sx={{ width: 280 }}>
+        <List sx={{ py: 0.5 }}>
+          <ListItemButton onClick={uploadFile}>
+            <ListItemIcon>
+              <FolderZipIcon sx={{ color: '#5f6368' }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="File upload" 
+              primaryTypographyProps={{ 
+                sx: { 
+                  color: '#3c4043',
+                  fontSize: '0.875rem'
+                } 
+              }} 
             />
-          </Grid>
-          <Grid item xs={3}>
-            <IconCaptionButton
-              icon={<ImageIcon fontSize="large" />}
-              caption="Image/Video"
-              onClick={uploadImage}
+          </ListItemButton>
+          <ListItemButton onClick={uploadImage}>
+            <ListItemIcon>
+              <ImageIcon sx={{ color: '#5f6368' }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Image/Video upload" 
+              primaryTypographyProps={{ 
+                sx: { 
+                  color: '#3c4043',
+                  fontSize: '0.875rem'
+                } 
+              }} 
             />
-          </Grid>
-          <Grid item xs={3}>
-            <IconCaptionButton
-              icon={<UploadIcon fontSize="large" />}
-              caption="Upload"
-              onClick={uploadFile}
+          </ListItemButton>
+          <ListItemButton onClick={takePhoto}>
+            <ListItemIcon>
+              <CameraIcon sx={{ color: '#5f6368' }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Take photo" 
+              primaryTypographyProps={{ 
+                sx: { 
+                  color: '#3c4043',
+                  fontSize: '0.875rem'
+                } 
+              }} 
             />
-          </Grid>
-          <Grid item xs={3}>
-            <IconCaptionButton
-              icon={<CreateNewFolderIcon fontSize="large" />}
-              caption="Create Folder"
-              onClick={async () => {
-                setOpen(false);
-                await createFolder(cwd);
-                onUpload();
-              }}
+          </ListItemButton>
+          <ListItemButton
+            onClick={async () => {
+              setOpen(false);
+              await createFolder(cwd);
+              onUpload();
+            }}
+          >
+            <ListItemIcon>
+              <CreateNewFolderIcon sx={{ color: '#5f6368' }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="New folder" 
+              primaryTypographyProps={{ 
+                sx: { 
+                  color: '#3c4043',
+                  fontSize: '0.875rem'
+                } 
+              }} 
             />
-          </Grid>
-        </Grid>
-      </Card>
-    </Drawer>
+          </ListItemButton>
+        </List>
+      </Paper>
+    </Popover>
   );
 }
 

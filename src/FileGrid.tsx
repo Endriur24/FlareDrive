@@ -1,34 +1,20 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Grid,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-} from "@mui/material";
-import MimeIcon from "./MimeIcon";
-import { humanReadableSize } from "./app/utils";
+import { Grid } from "@mui/material";
+import FileGridItem from "./components/FileGridItem";
 import FileViewer from "./FileViewer";
-import { copyPaste } from "./app/transfer";
+import { renameFile, deleteFile } from "./services/fileOperations";
+import NotificationSnackbar from "./components/common/NotificationSnackbar";
+import { AlertColor } from "@mui/material";
+import { isDirectory } from "./utils/fileUtils";
+import { FileItem } from "./types/file";
 
-export interface FileItem {
-  key: string;
-  size: number;
-  uploaded: string;
-  httpMetadata: { contentType: string };
-  customMetadata?: { thumbnail?: string };
-}
-
-function extractFilename(key: string) {
-  return key.split("/").pop();
-}
-
-export function encodeKey(key: string) {
-  return key.split("/").map(encodeURIComponent).join("/");
-}
-
-export function isDirectory(file: FileItem) {
-  return file.httpMetadata?.contentType === "application/x-directory";
+interface FileGridProps {
+  files: FileItem[];
+  onCwdChange: (newCwd: string) => void;
+  multiSelected: string[] | null;
+  onMultiSelect: (key: string) => void;
+  emptyMessage?: React.ReactNode;
+  onRefresh: () => void;
 }
 
 function FileGrid({
@@ -38,16 +24,18 @@ function FileGrid({
   onMultiSelect,
   emptyMessage,
   onRefresh,
-}: {
-  files: FileItem[];
-  onCwdChange: (newCwd: string) => void;
-  multiSelected: string[] | null;
-  onMultiSelect: (key: string) => void;
-  emptyMessage?: React.ReactNode;
-  onRefresh: () => void;
-}) {
+}: FileGridProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+  const [notification, setNotification] = useState<{
+    open: boolean;
+    message: string;
+    severity: AlertColor;
+  }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
 
   const nonDirectoryFiles = files.filter(file => !isDirectory(file));
   const selectedFileIndex = selectedFile 
@@ -66,41 +54,45 @@ function FileGrid({
   };
 
   const handleFileRename = async (oldKey: string, newName: string) => {
-    const dirPath = oldKey.substring(0, oldKey.lastIndexOf('/') + 1);
-    const newPath = dirPath + newName;
-    
     try {
-      await copyPaste(oldKey, newPath, true);
+      await renameFile(oldKey, newName);
       onRefresh();
       
       // Update the selected file with new key
       if (selectedFile && selectedFile.key === oldKey) {
+        const dirPath = oldKey.substring(0, oldKey.lastIndexOf('/') + 1);
+        const newPath = dirPath + newName;
         setSelectedFile({
           ...selectedFile,
           key: newPath
         });
       }
+
+      setNotification({
+        open: true,
+        message: 'File renamed successfully',
+        severity: 'success'
+      });
     } catch (error) {
-      console.error('Error renaming file:', error);
+      setNotification({
+        open: true,
+        message: 'Error renaming file',
+        severity: 'error'
+      });
     }
   };
 
   const handleFileDelete = async (key: string) => {
-    try {
-      const response = await fetch(`/webdav/${encodeKey(key)}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete file');
-      }
-      
-      setViewerOpen(false);
-      setSelectedFile(null);
-      onRefresh();
-    } catch (error) {
-      console.error('Error deleting file:', error);
-    }
+    // File was already deleted in FileViewer, just update UI
+    setViewerOpen(false);
+    setSelectedFile(null);
+    onRefresh();
+    
+    setNotification({
+      open: true,
+      message: 'File deleted successfully',
+      severity: 'success'
+    });
   };
 
   return (
@@ -110,51 +102,16 @@ function FileGrid({
       ) : (
         <Grid container sx={{ paddingBottom: "48px" }}>
           {files.map((file) => (
-            <Grid item key={file.key} xs={12} sm={6} md={4} lg={3} xl={2}>
-              <ListItemButton
-                selected={multiSelected?.includes(file.key)}
-                onClick={() => handleFileClick(file)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  onMultiSelect(file.key);
-                }}
-                sx={{ userSelect: "none" }}
-              >
-                <ListItemIcon>
-                  {file.customMetadata?.thumbnail ? (
-                    <img
-                      src={`/webdav/_$flaredrive$/thumbnails/${file.customMetadata.thumbnail}.png`}
-                      alt={file.key}
-                      style={{ width: 36, height: 36, objectFit: "cover" }}
-                    />
-                  ) : (
-                    <MimeIcon contentType={file.httpMetadata.contentType} />
-                  )}
-                </ListItemIcon>
-                <ListItemText
-                  primary={extractFilename(file.key)}
-                  primaryTypographyProps={{
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                  secondary={
-                    <React.Fragment>
-                      <Box
-                        sx={{
-                          display: "inline-block",
-                          minWidth: "160px",
-                          marginRight: 1,
-                        }}
-                      >
-                        {new Date(file.uploaded).toLocaleString()}
-                      </Box>
-                      {!isDirectory(file) && humanReadableSize(file.size)}
-                    </React.Fragment>
-                  }
-                />
-              </ListItemButton>
-            </Grid>
+            <FileGridItem
+              key={file.key}
+              file={file}
+              isSelected={multiSelected?.includes(file.key) || false}
+              onClick={() => handleFileClick(file)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                onMultiSelect(file.key);
+              }}
+            />
           ))}
         </Grid>
       )}
@@ -170,6 +127,12 @@ function FileGrid({
         onNavigate={(file) => setSelectedFile(file)}
         onRename={handleFileRename}
         onDelete={handleFileDelete}
+      />
+      <NotificationSnackbar
+        open={notification.open}
+        message={notification.message}
+        severity={notification.severity}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
       />
     </>
   );
