@@ -6,12 +6,9 @@ import {
   List,
   ListItem,
   ListItemText,
-  Tab,
-  Tabs,
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useMemo, useState } from "react";
 import { TransferTask, useTransferQueue } from "./app/transferQueue";
 import { humanReadableSize } from "./app/utils";
 import {
@@ -26,31 +23,16 @@ function ProgressDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState(0);
   const transferQueue: TransferTask[] = useTransferQueue();
-
-  const tasks = useMemo(() => {
-    const taskType = tab === 0 ? "download" : "upload";
-    return Object.values(transferQueue).filter(
-      (task) => task.type === taskType
-    );
-  }, [tab, transferQueue]);
+  const tasks = transferQueue.filter((task) => task.type === "upload");
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Progress</DialogTitle>
-      <Tabs
-        value={tab}
-        onChange={(_, newTab) => setTab(newTab)}
-        sx={{ "& .MuiTab-root": { flexBasis: "50%" } }}
-      >
-        <Tab label="Downloads" />
-        <Tab label="Uploads" />
-      </Tabs>
+      <DialogTitle>Upload Progress</DialogTitle>
       {tasks.length === 0 ? (
         <DialogContent>
           <Typography textAlign="center" color="text.secondary">
-            No tasks
+            No uploads in progress
           </Typography>
         </DialogContent>
       ) : (

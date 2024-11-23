@@ -6,7 +6,6 @@ import {
   CircularProgress,
   Link,
   Typography,
-  Snackbar,
 } from "@mui/material";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -15,6 +14,7 @@ import MultiSelectToolbar from "./MultiSelectToolbar";
 import UploadDrawer, { UploadFab } from "./UploadDrawer";
 import { copyPaste, fetchPath } from "./app/transfer";
 import { useTransferQueue, useUploadEnqueue } from "./app/transferQueue";
+import ProgressDialog from "./ProgressDialog";
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
@@ -123,10 +123,14 @@ function Main({
   const [multiSelected, setMultiSelected] = useState<string[] | null>(null);
   const [showUploadDrawer, setShowUploadDrawer] = useState(false);
   const [lastUploadKey, setLastUploadKey] = useState<string | null>(null);
-  const [showShareSnackbar, setShowShareSnackbar] = useState(false);
 
   const transferQueue = useTransferQueue();
   const uploadEnqueue = useUploadEnqueue();
+
+  // Show progress dialog automatically when there are active uploads
+  const hasActiveUploads = transferQueue.some(
+    task => task.type === "upload" && ["pending", "in-progress"].includes(task.status)
+  );
 
   const fetchFiles = useCallback(() => {
     fetchPath(cwd)
@@ -243,14 +247,11 @@ function Main({
           if (multiSelected?.length !== 1) return;
           const fileUrl = `https://andrzejrusinowski.pl/static/${encodeKey(multiSelected[0])}`;
           navigator.clipboard.writeText(fileUrl);
-          setShowShareSnackbar(true);
         }}
       />
-      <Snackbar
-        open={showShareSnackbar}
-        autoHideDuration={3000}
-        onClose={() => setShowShareSnackbar(false)}
-        message="Link copied to clipboard"
+      <ProgressDialog 
+        open={hasActiveUploads} 
+        onClose={() => {}} // Prevent manual closing when uploads are active
       />
     </React.Fragment>
   );
