@@ -7,3 +7,6 @@ binding = "BUCKET"
 bucket_name = "assets"
 
 
+[[vars]]
+WEBDAV_USERNAME= "test"
+WEBDAV_PASSWORD= "test"
