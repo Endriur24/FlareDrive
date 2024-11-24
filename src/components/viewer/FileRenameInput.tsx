@@ -44,8 +44,6 @@ function FileRenameInput({ file, onSubmit, onCancel }: FileRenameInputProps) {
     } else {
       onCancel?.();
     }
-    
-    isSubmittingRef.current = false;
   };
 
   const handleCheckClick = (e: React.MouseEvent) => {
@@ -56,7 +54,7 @@ function FileRenameInput({ file, onSubmit, onCancel }: FileRenameInputProps) {
   };
 
   const handleInputBlur = (e: React.FocusEvent) => {
-    // Don't close if clicking the check button
+    // Don't close if clicking the check button or if submitting
     if (checkButtonRef.current?.contains(e.relatedTarget as Node) || isSubmittingRef.current) {
       return;
     }
@@ -93,6 +91,7 @@ function FileRenameInput({ file, onSubmit, onCancel }: FileRenameInputProps) {
               onBlur={handleInputBlur}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
+                  isSubmittingRef.current = true;
                   handleSubmit();
                 } else if (e.key === 'Escape') {
                   onCancel?.();

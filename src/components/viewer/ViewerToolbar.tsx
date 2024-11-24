@@ -52,6 +52,12 @@ function ViewerToolbar({
     onShareLink(link);
   };
 
+  const handleRenameSubmit = (newName: string) => {
+    onRenameSubmit(file.key, newName);
+    // Immediately exit rename mode after submission
+    onRenameCancel();
+  };
+
   return (
     <AppBar position="relative" color="default">
       <Toolbar>
@@ -76,7 +82,7 @@ function ViewerToolbar({
           {isRenaming ? (
             <FileRenameInput 
               file={file} 
-              onSubmit={(newName: string) => onRenameSubmit(file.key, newName)}
+              onSubmit={handleRenameSubmit}
               onCancel={onRenameCancel}
             />
           ) : (
